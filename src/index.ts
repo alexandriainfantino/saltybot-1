@@ -3,8 +3,7 @@ import axios from "axios"
 import * as Discord from "discord.js"
 import { SaltyBet, Status } from './SaltyBet';
 import { UserRepository } from "./UserRepository";
-import config from "./config"
-
+import * as mysql from 'mysql';
 
 const POLL_MS = 3000;
 
@@ -22,6 +21,21 @@ async function getState(): Promise<any> {
     return response.data;
 }
 
+
+const host = process.env.HOST as string;
+const user = process.env.USER as string;
+const password = process.env.PASSWORD as string;
+const database = process.env.DATABASE as string;
+
+const connection = mysql.createConnection({
+    host,
+    user,
+    password,
+    database
+});
+
+connection.connect();
+
 const exit = false;
 dotenv.config();
 const client = new Discord.Client();
@@ -30,7 +44,8 @@ client.on('ready', async () => {
     const saltyBet = new SaltyBet(currentState.status, currentState.p1total, currentState.p2total);
 
     console.log(`Logged in as ${client?.user?.tag}`);
-    const channel = client.channels.cache.get(config.discordId) as Discord.TextChannel;
+    let discordId = process.env.DISCORD_ID as string;
+    const channel = client.channels.cache.get(discordId) as Discord.TextChannel;
 
     while (!exit) {
         try {
@@ -64,7 +79,9 @@ client.on('ready', async () => {
 });
 
 client.on('message', async (message: any) => {
-    const channel = client.channels.cache.get(config.discordId) as Discord.TextChannel;
+    const discordId = process.env.DISCORD_ID as string;
+
+    const channel = client.channels.cache.get(discordId) as Discord.TextChannel;
     const commandString = message.content;
     const commandArray = commandString.split(" ");
     const command = commandArray[0];
@@ -76,7 +93,7 @@ client.on('message', async (message: any) => {
 
                 break
             }
-            const userRepository = new UserRepository();
+            const userRepository = new UserRepository(connection);
             userRepository.addUser(commandArray[1]);
             channel.send(`User ${commandArray[1]} registered`);
 
